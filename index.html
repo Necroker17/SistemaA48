@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema A48 — DropOutliers</title>
+<style>
+  :root {
+    --negro: #0D0D0D;
+    --negro2: #141414;
+    --gris-dark: #1A1A1A;
+    --gris-mid: #2A2A2A;
+    --dorado: #F5B800;
+    --dorado-claro: #FFD966;
+    --dorado-oscuro: #D49800;
+    --dorado-glow: rgba(245,184,0,0.28);
+    --blanco: #FFFFFF;
+    --gris-texto: #888888;
+    --gris-claro: #CCCCCC;
+    --azul: #1A3A5C;
+    --verde: #2D7A4F;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--negro);
+    color: var(--blanco);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; }
+  .gold { color: var(--dorado); }
+  .white { color: var(--blanco); }
+  .muted { color: var(--gris-texto); }
+
+  /* ─── NAVBAR ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 40px;
+    background: rgba(13,13,13,0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(245,184,0,0.2);
+  }
+  .nav-logo { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.08em; color: var(--dorado); }
+  .nav-logo span { color: var(--blanco); }
+  .nav-cta {
+    background: linear-gradient(135deg, var(--dorado-claro), var(--dorado), var(--dorado-oscuro));
+    color: #000;
+    padding: 11px 26px; border-radius: 6px;
+    font-weight: 800; font-size: 0.82rem; letter-spacing: 0.08em;
+    text-decoration: none; text-transform: uppercase;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(245,184,0,0.35);
+  }
+  .nav-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 36px rgba(245,184,0,0.55);
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 120px 24px 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(245,184,0,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    border: 1px solid var(--dorado);
+    color: var(--dorado);
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.18em;
+    padding: 6px 16px; border-radius: 100px;
+    margin-bottom: 28px; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    max-width: 900px;
+    margin: 0 auto 12px;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--dorado-claro), var(--dorado));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--gris-claro);
+    max-width: 620px;
+    margin: 20px auto 40px;
+  }
+  .hero-stats {
+    display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 800; color: var(--dorado); }
+  .stat-label { font-size: 0.78rem; color: var(--gris-texto); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px; }
+  .hero-cta {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--dorado-claro) 0%, var(--dorado) 50%, var(--dorado-oscuro) 100%);
+    color: #000;
+    padding: 20px 56px;
+    border-radius: 6px;
+    font-weight: 900; font-size: 1.05rem; letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform 0.25s, box-shadow 0.25s;
+    box-shadow: 0 0 50px rgba(245,184,0,0.45), 0 4px 24px rgba(0,0,0,0.5);
+  }
+  .hero-cta:hover { transform: translateY(-3px); box-shadow: 0 0 80px rgba(245,184,0,0.65), 0 8px 32px rgba(0,0,0,0.5); }
+  .hero-note { font-size: 0.8rem; color: var(--gris-texto); margin-top: 16px; }
+  .scroll-line {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--gris-texto); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .scroll-line::after {
+    content: '';
+    width: 1px; height: 40px;
+    background: linear-gradient(to bottom, var(--dorado), transparent);
+    display: block;
+  }
+
+  /* ─── SECTIONS ─── */
+  section { padding: 100px 24px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em;
+    color: var(--dorado); text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::before {
+    content: ''; display: block;
+    width: 32px; height: 1px; background: var(--dorado);
+  }
+  .section-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    max-width: 700px;
+    margin-bottom: 16px;
+  }
+  .section-desc {
+    color: var(--gris-claro);
+    font-size: 1.05rem;
+    max-width: 580px;
+    margin-bottom: 60px;
+  }
+
+  /* ─── LA PROMESA ─── */
+  .promesa-section { background: var(--gris-dark); border-top: 1px solid #222; border-bottom: 1px solid #222; }
+  .promesa-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; background: #222;
+    border: 1px solid #333; border-radius: 8px; overflow: hidden;
+    margin-top: 60px;
+  }
+  .promesa-item {
+    background: var(--negro2);
+    padding: 36px 32px;
+    position: relative;
+  }
+  .promesa-item::before {
+    content: attr(data-num);
+    position: absolute; top: 24px; right: 24px;
+    font-size: 3rem; font-weight: 900;
+    color: rgba(245,184,0,0.08);
+    line-height: 1;
+  }
+  .promesa-icon { font-size: 1.6rem; margin-bottom: 12px; }
+  .promesa-title { font-size: 1.05rem; font-weight: 700; color: var(--dorado); margin-bottom: 8px; }
+  .promesa-text { font-size: 0.9rem; color: var(--gris-claro); }
+
+  /* ─── ARQUITECTURA DEL SISTEMA ─── */
+  .arq-section { background: var(--negro); }
+  .arq-diagram {
+    margin-top: 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+
+  /* Cerebro central */
+  .brain-node {
+    background: linear-gradient(135deg, #1A1A0A, #2A2200);
+    border: 2px solid var(--dorado);
+    border-radius: 12px;
+    padding: 28px 48px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(245,184,0,0.2);
+    position: relative;
+    z-index: 2;
+    max-width: 420px; width: 100%;
+  }
+  .brain-label { font-size: 0.65rem; letter-spacing: 0.2em; color: var(--dorado); text-transform: uppercase; margin-bottom: 8px; }
+  .brain-title { font-size: 1.4rem; font-weight: 800; color: var(--dorado-claro); }
+  .brain-desc { font-size: 0.82rem; color: var(--gris-claro); margin-top: 8px; }
+
+  /* Conectores verticales */
+  .connector-v {
+    width: 2px; height: 40px;
+    background: linear-gradient(to bottom, var(--dorado), rgba(245,184,0,0.3));
+    flex-shrink: 0;
+  }
+  .connector-v.down {
+    background: linear-gradient(to bottom, rgba(245,184,0,0.3), var(--dorado));
+  }
+
+  /* Fila de agentes */
+  .agents-row {
+    display: flex; gap: 12px; justify-content: center;
+    flex-wrap: wrap; width: 100%; max-width: 900px;
+    position: relative;
+  }
+  .agents-row::before {
+    content: '';
+    position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+    background: linear-gradient(to right, transparent, var(--dorado), transparent);
+  }
+  .agent-card {
+    flex: 1; min-width: 140px; max-width: 170px;
+    background: var(--gris-dark);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 20px 14px;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    cursor: default;
+  }
+  .agent-card::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 1px; height: 16px; background: var(--dorado);
+    top: -17px;
+  }
+  .agent-card:hover {
+    border-color: var(--dorado);
+    box-shadow: 0 0 24px rgba(245,184,0,0.15);
+  }
+  .agent-icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .agent-name { font-size: 0.7rem; font-weight: 800; color: var(--dorado); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .agent-role { font-size: 0.72rem; color: var(--gris-texto); }
+
+  /* Capa de outputs */
+  .outputs-row {
+    display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    max-width: 900px; width: 100%;
+    position: relative;
+  }
+  .outputs-row::before {
+    content: '';
+    position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(245,184,0,0.4), transparent);
+  }
+  .output-chip {
+    background: rgba(245,184,0,0.08);
+    border: 1px solid rgba(245,184,0,0.25);
+    border-radius: 100px;
+    padding: 8px 20px;
+    font-size: 0.78rem; font-weight: 600; color: var(--dorado-claro);
+    position: relative;
+  }
+  .output-chip::before {
+    content: '';
+    position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
+    width: 1px; height: 16px;
+    background: rgba(245,184,0,0.4);
+  }
+
+  /* ─── MODULOS ─── */
+  .modulos-section { background: var(--gris-dark); }
+  .modulos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px; background: #222;
+    border: 1px solid #2A2A2A; border-radius: 8px; overflow: hidden;
+    margin-top: 60px;
+  }
+  .modulo-card {
+    background: var(--negro2);
+    padding: 28px 24px;
+    position: relative;
+    transition: background 0.3s;
+  }
+  .modulo-card:hover { background: #181818; }
+  .modulo-num {
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
+    color: var(--dorado); text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .modulo-title { font-size: 0.95rem; font-weight: 700; color: var(--blanco); margin-bottom: 8px; }
+  .modulo-desc { font-size: 0.8rem; color: var(--gris-texto); line-height: 1.5; }
+  .modulo-tag {
+    display: inline-block; margin-top: 12px;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+    padding: 3px 10px; border-radius: 100px;
+    background: rgba(245,184,0,0.12); color: var(--dorado);
+    text-transform: uppercase;
+  }
+  .modulo-card.destacado {
+    background: linear-gradient(135deg, #0D0D00, #1A1600);
+    border: 1px solid rgba(245,184,0,0.3);
+  }
+
+  /* ─── PROTOCOLO ─── */
+  .protocolo-section { background: var(--negro); }
+  .fases-track {
+    display: flex; flex-direction: column; gap: 0;
+    margin-top: 60px; position: relative;
+  }
+  .fases-track::before {
+    content: '';
+    position: absolute; left: 23px; top: 24px; bottom: 24px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--dorado), rgba(245,184,0,0.1));
+  }
+  .fase-item {
+    display: flex; gap: 24px; align-items: flex-start;
+    padding: 20px 0; padding-left: 4px;
+    position: relative;
+  }
+  .fase-dot {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: var(--negro); border: 2px solid var(--dorado);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 800; color: var(--dorado);
+    position: relative; z-index: 1;
+  }
+  .fase-content { flex: 1; padding-top: 8px; }
+  .fase-title { font-size: 1rem; font-weight: 700; color: var(--blanco); margin-bottom: 4px; }
+  .fase-desc { font-size: 0.85rem; color: var(--gris-claro); }
+  .fase-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .fase-chip {
+    font-size: 0.68rem; font-weight: 600;
+    padding: 3px 10px; border-radius: 100px;
+    background: rgba(255,255,255,0.06); color: var(--gris-claro);
+    border: 1px solid #333;
+  }
+
+  /* ─── ESCALERA DE VALOR ─── */
+  .escalera-section { background: var(--gris-dark); }
+  .escalera-container {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-top: 60px; max-width: 800px; margin-left: auto; margin-right: auto;
+  }
+  .nivel-card {
+    display: flex; align-items: stretch;
+    border: 1px solid #2A2A2A; border-radius: 8px; overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .nivel-card:hover { border-color: rgba(245,184,0,0.4); }
+  .nivel-card.recomendado { border-color: var(--dorado); }
+  .nivel-badge {
+    width: 90px; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px 12px; gap: 4px;
+    background: var(--gris-mid);
+    text-align: center;
+  }
+  .nivel-card.recomendado .nivel-badge { background: var(--dorado); }
+  .nivel-num { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gris-texto); }
+  .nivel-card.recomendado .nivel-num { color: rgba(0,0,0,0.6); }
+  .nivel-nombre { font-size: 0.75rem; font-weight: 700; color: var(--blanco); margin-top: 2px; }
+  .nivel-card.recomendado .nivel-nombre { color: var(--negro); }
+  .nivel-body { flex: 1; padding: 20px 24px; background: var(--negro2); display: flex; align-items: center; gap: 24px; }
+  .nivel-precio {
+    font-size: 1.4rem; font-weight: 800; color: var(--dorado);
+    white-space: nowrap; min-width: 100px;
+  }
+  .nivel-card.recomendado .nivel-precio { color: var(--dorado-claro); }
+  .nivel-desc { font-size: 0.82rem; color: var(--gris-claro); flex: 1; }
+  .nivel-rec-tag {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+    padding: 3px 8px; border-radius: 100px;
+    background: rgba(245,184,0,0.15); color: var(--dorado);
+    text-transform: uppercase; white-space: nowrap;
+  }
+
+  /* ─── QUOTE FINAL ─── */
+  .quote-section {
+    background: var(--negro);
+    text-align: center;
+    padding: 80px 24px;
+  }
+  .big-quote {
+    font-size: clamp(1.6rem, 3.5vw, 2.5rem);
+    font-weight: 700; font-style: italic;
+    max-width: 800px; margin: 0 auto;
+    color: var(--dorado-claro);
+    line-height: 1.4;
+  }
+  .quote-attr { font-size: 0.85rem; color: var(--gris-texto); margin-top: 20px; letter-spacing: 0.05em; }
+
+  /* ─── CTA FINAL ─── */
+  .cta-section {
+    background: linear-gradient(135deg, #0D0D00, #0D0D0D 60%);
+    border-top: 1px solid rgba(245,184,0,0.2);
+    text-align: center;
+    padding: 100px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(245,184,0,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cta-section h2 { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 16px; }
+  .cta-section p { color: var(--gris-claro); font-size: 1.05rem; max-width: 500px; margin: 0 auto 40px; }
+  .cta-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--dorado-claro) 0%, var(--dorado) 50%, var(--dorado-oscuro) 100%);
+    color: #000;
+    padding: 22px 64px;
+    border-radius: 6px;
+    font-weight: 900; font-size: 1.1rem; letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform 0.25s, box-shadow 0.25s;
+    box-shadow: 0 0 60px rgba(245,184,0,0.5), 0 6px 32px rgba(0,0,0,0.5);
+    position: relative;
+  }
+  .cta-btn:hover { transform: translateY(-3px); box-shadow: 0 0 100px rgba(245,184,0,0.7), 0 10px 40px rgba(0,0,0,0.5); }
+  .cta-whatsapp {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 24px; color: var(--gris-texto); font-size: 0.85rem;
+  }
+  .cta-whatsapp span { color: #25D366; font-weight: 700; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--negro2);
+    border-top: 1px solid #1A1A1A;
+    padding: 32px 40px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  }
+  .footer-logo { font-size: 1rem; font-weight: 800; color: var(--dorado); letter-spacing: 0.08em; }
+  .footer-logo span { color: var(--gris-texto); }
+  .footer-copy { font-size: 0.75rem; color: var(--gris-texto); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    nav { padding: 14px 20px; }
+    .hero-stats { gap: 24px; }
+    .promesa-grid { grid-template-columns: 1fr; }
+    .modulos-grid { grid-template-columns: 1fr; }
+    .agents-row { gap: 8px; }
+    .agent-card { min-width: 120px; }
+    .nivel-body { flex-direction: column; gap: 12px; }
+    footer { flex-direction: column; text-align: center; }
+    .nivel-card { flex-direction: column; }
+    .nivel-badge { width: 100%; flex-direction: row; padding: 12px 16px; }
+  }
+
+  /* ─── ANIMACIONES SUTILES ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero > * { animation: fadeUp 0.7s ease both; }
+  .hero-badge { animation-delay: 0.1s; }
+  .hero h1 { animation-delay: 0.2s; }
+  .hero-sub { animation-delay: 0.3s; }
+  .hero-stats { animation-delay: 0.4s; }
+  .hero-cta { animation-delay: 0.5s; }
+
+  /* Glow line decorativa */
+  .glow-divider {
+    width: 80px; height: 2px;
+    background: linear-gradient(to right, transparent, var(--dorado), transparent);
+    margin: 0 auto 48px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─────────────── NAVBAR ─────────────── -->
+<nav>
+  <div class="nav-logo">
+    <img id="logo-nav" src="" alt="DropOutliers" style="height:44px;display:none;vertical-align:middle;margin-right:8px;mix-blend-mode:screen;filter:brightness(1.05);">
+    <span id="logo-text">DROP<span>OUTLIERS</span></span>
+  </div>
+  <a href="https://api.whatsapp.com/send?phone=573137280904&text=Hola!%20quiero%20separar%20mi%20cupo%20%F0%9F%8E%AB.%0A" target="_blank" class="nav-cta">ACCEDER AL SISTEMA →</a>
+</nav>
+
+<!-- ─────────────── HERO ─────────────── -->
+<section class="hero">
+  <img id="hero-logo" src="" alt="DropOutliers" style="display:none;height:110px;margin-bottom:28px;mix-blend-mode:screen;filter:drop-shadow(0 0 28px rgba(245,184,0,0.5)) brightness(1.05);">
+  <div class="hero-badge">Sistema Activo en 48 Horas</div>
+  <h1>Tu negocio digital,<br><em>activo en 48 horas.</em></h1>
+  <p class="hero-sub">
+    Un ecosistema completo de dropshipping + Inteligencia Artificial Contextual,
+    diseñado para que ejecutes, no para que estudies.
+  </p>
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-num">$169M</div>
+      <div class="stat-label">COP vendidos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">+1,000</div>
+      <div class="stat-label">Vidas impactadas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">12</div>
+      <div class="stat-label">Meses consecutivos $12M+/mes</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">48h</div>
+      <div class="stat-label">Para activar tu negocio</div>
+    </div>
+  </div>
+  <a href="https://api.whatsapp.com/send?phone=573137280904&text=Hola!%20quiero%20separar%20mi%20cupo%20%F0%9F%8E%AB.%0A" target="_blank" class="hero-cta">QUIERO EL SISTEMA A48</a>
+  <p class="hero-note">Acceso inmediato · Sin inventario · Sin conocimiento técnico previo</p>
+  <div class="scroll-line">Descubre el sistema</div>
+</section>
+
+<!-- ─────────────── LA DIFERENCIA ─────────────── -->
+<section class="promesa-section">
+  <div class="container">
+    <div class="section-label">Por qué funciona</div>
+    <h2 class="section-title">No es un curso. Es un <span class="gold">sistema operativo</span> de negocios.</h2>
+    <p class="section-desc">La diferencia entre aprender sobre negocios y tener un negocio activo es exactamente lo que el Sistema A48 resuelve.</p>
+    <div class="promesa-grid">
+      <div class="promesa-item" data-num="01">
+        <div class="promesa-icon">⚡</div>
+        <div class="promesa-title">Velocidad de activación real</div>
+        <div class="promesa-text">Casos documentados de 500,000 COP en ventas durante la primera semana. La metodología elimina fricción en cada paso del proceso.</div>
+      </div>
+      <div class="promesa-item" data-num="02">
+        <div class="promesa-icon">🧠</div>
+        <div class="promesa-title">IA Contextual, no genérica</div>
+        <div class="promesa-text">5 AI Agents especializados entrenados con los datos de TU negocio específico. No es ChatGPT genérico — es un equipo que ya sabe de tu producto.</div>
+      </div>
+      <div class="promesa-item" data-num="03">
+        <div class="promesa-icon">📊</div>
+        <div class="promesa-title">Resultados propios, no ajenos</div>
+        <div class="promesa-text">$169,357,699 COP vendidos. 2,243 pedidos procesados. 12 meses consecutivos de facturación sostenida. Números propios, no casos de terceros.</div>
+      </div>
+      <div class="promesa-item" data-num="04">
+        <div class="promesa-icon">🔧</div>
+        <div class="promesa-title">Sistema autónomo, no dependencia</div>
+        <div class="promesa-text">El objetivo no es que necesites al instructor para siempre. Es que el sistema trabaje sin ti. Autonomía desde el día 1.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── ARQUITECTURA DEL SISTEMA ─────────────── -->
+<section class="arq-section" id="sistema">
+  <div class="container" style="text-align:center;">
+    <div class="section-label" style="justify-content:center;">Arquitectura del Sistema</div>
+    <h2 class="section-title" style="margin:0 auto 16px;">El ecosistema completo<br>que mueve tu negocio</h2>
+    <p class="section-desc" style="margin:0 auto 60px;">Todos los componentes conectados. Cada pieza diseñada para trabajar con las demás de forma coherente y automática.</p>
+
+    <div class="arq-diagram">
+
+      <!-- CEREBRO CENTRAL -->
+      <div class="brain-node">
+        <div class="brain-label">🧠 Cerebro Central</div>
+        <div class="brain-title">NotebookLM</div>
+        <div class="brain-desc">Se entrena con tu producto · tu mercado · tu oferta<br>Genera coherencia en todo el ecosistema</div>
+      </div>
+
+      <div class="connector-v"></div>
+
+      <!-- FILA DE AGENTES -->
+      <div class="agents-row">
+        <div class="agent-card">
+          <div class="agent-icon">🔍</div>
+          <div class="agent-name">El Investigador</div>
+          <div class="agent-role">Mercado, competencia y tendencias</div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-icon">💰</div>
+          <div class="agent-name">CFO</div>
+          <div class="agent-role">Costeo, rentabilidad y proyecciones</div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-icon">🎯</div>
+          <div class="agent-name">Andrómeda</div>
+          <div class="agent-role">Creativos publicitarios y ángulos de venta</div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-icon">🏷️</div>
+          <div class="agent-name">Tu Marca</div>
+          <div class="agent-role">Identidad visual en minutos</div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-icon">✍️</div>
+          <div class="agent-name">Copynator</div>
+          <div class="agent-role">Copy, scripts y mensajes de ventas</div>
+        </div>
+      </div>
+
+      <div class="connector-v down"></div>
+
+      <!-- OUTPUTS -->
+      <div class="outputs-row">
+        <div class="output-chip">📦 Producto validado</div>
+        <div class="output-chip">📣 Campaña en Meta Ads</div>
+        <div class="output-chip">💬 Flujo de ventas en WhatsApp</div>
+        <div class="output-chip">📈 Negocio activo</div>
+      </div>
+
+    </div>
+
+    <!-- Descripción extra -->
+    <div style="margin-top:60px;max-width:660px;margin-left:auto;margin-right:auto;">
+      <p style="color:var(--gris-claro);font-size:0.95rem;">
+        Todos los agentes son alimentados por NotebookLM con la información específica de tu negocio.
+        Resultado: anuncios, scripts y copy que hablan exactamente de tu producto — no contenido genérico.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── MÓDULOS ─────────────── -->
+<section class="modulos-section" id="modulos">
+  <div class="container">
+    <div class="section-label">Contenido del Sistema</div>
+    <h2 class="section-title">9 módulos. ~6 horas.<br><span class="gold">Cero relleno.</span></h2>
+    <p class="section-desc">Cada módulo termina con una acción ejecutada, no con más información para procesar.</p>
+
+    <div class="modulos-grid">
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 0</div>
+        <div class="modulo-title">Protocolo sin fricción</div>
+        <div class="modulo-desc">Configura tu ecosistema antes de empezar: marca, Meta Business y cuenta Dropi en un solo flujo guiado.</div>
+        <div class="modulo-tag">Pre-work · 15 min</div>
+      </div>
+
+      <div class="modulo-card destacado">
+        <div class="modulo-num">Módulo 1 — ⭐ La joya</div>
+        <div class="modulo-title">Mentalidad del operador</div>
+        <div class="modulo-desc">El módulo más valorado por los estudiantes. Modelo C.R.E.E., los 3 niveles del vendedor y visión con propósito. Sin esto, ningún sistema funciona.</div>
+        <div class="modulo-tag">Cámara · 45 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 2</div>
+        <div class="modulo-title">Setup técnico: Dropi + extensiones</div>
+        <div class="modulo-desc">Tour completo por Dropi, instalación de DropKiller y Minea, y tu primer portafolio de productos validados.</div>
+        <div class="modulo-tag">Screen recording · 30 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 3</div>
+        <div class="modulo-title">Investigación de mercado con IA</div>
+        <div class="modulo-desc">Espionaje de competencia, biblioteca de anuncios de Facebook y NotebookLM como cerebro central de tu negocio.</div>
+        <div class="modulo-tag">Screen recording · 40 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 4</div>
+        <div class="modulo-title">Números: costeo y proyecciones</div>
+        <div class="modulo-desc">Estructura de costeo por opciones, impacto de devoluciones y proyección a 10, 20, 50 y 100 ventas con el Agente CFO.</div>
+        <div class="modulo-tag">Plantilla incluida · 30 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 5</div>
+        <div class="modulo-title">Creativos con IA</div>
+        <div class="modulo-desc">UGC, videos, imágenes y copy de anuncios generados con Gemini, Andrómeda y Copynator. Creativos que convierten, no que se ven bonitos.</div>
+        <div class="modulo-tag">Práctica en vivo · 50 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 6</div>
+        <div class="modulo-title">Script de ventas + WhatsApp</div>
+        <div class="modulo-desc">Flujo completo: Meta Ads → WhatsApp Business → audios → cierre. Tasa documentada del 60–75% de conversión.</div>
+        <div class="modulo-tag">Roleplay grabado · 40 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 7</div>
+        <div class="modulo-title">Campañas: ABO, CBO y lanzamiento</div>
+        <div class="modulo-desc">Estructuras de campaña con presupuestos reales, montaje paso a paso en Meta Ads Manager y publicación en vivo de tu primera campaña.</div>
+        <div class="modulo-tag">Screen recording · 35 min</div>
+      </div>
+
+      <div class="modulo-card">
+        <div class="modulo-num">Módulo 8</div>
+        <div class="modulo-title">Optimización, escala y sostenibilidad</div>
+        <div class="modulo-desc">Métricas que importan, cuándo escalar, cómo no romper campañas y el plan de 20 días para ir a estándar de facturación.</div>
+        <div class="modulo-tag">Plan de acción · 35 min</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── PROTOCOLO DE ACTIVACIÓN ─────────────── -->
+<section class="protocolo-section" id="protocolo">
+  <div class="container">
+    <div class="section-label">Cómo funciona el proceso</div>
+    <h2 class="section-title">De cero a negocio activo:<br><span class="gold">4 fases de activación</span></h2>
+    <p class="section-desc">El protocolo está diseñado para eliminar cada punto de fricción antes de que aparezca.</p>
+
+    <div class="fases-track">
+
+      <div class="fase-item">
+        <div class="fase-dot">F0</div>
+        <div class="fase-content">
+          <div class="fase-title">Preparación inicial — Tu identidad de marca en 5 minutos</div>
+          <div class="fase-desc">El Agente "Tu Marca" genera nombre, logo, foto de perfil y portada para Facebook. Sin diseñadores, sin esperas.</div>
+          <div class="fase-chips">
+            <span class="fase-chip">GPT Tu Marca</span>
+            <span class="fase-chip">Generación con IA</span>
+            <span class="fase-chip">~15 min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fase-item">
+        <div class="fase-dot">F1</div>
+        <div class="fase-content">
+          <div class="fase-title">El búnker — Ecosistema Meta configurado</div>
+          <div class="fase-desc">Fan Page, WhatsApp Business, portafolio comercial, cuenta publicitaria y método de pago. Un paso crítico: configuración fiscal para evitar +19% de IVA.</div>
+          <div class="fase-chips">
+            <span class="fase-chip">Meta Business Suite</span>
+            <span class="fase-chip">WhatsApp Business API</span>
+            <span class="fase-chip">Configuración fiscal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fase-item">
+        <div class="fase-dot">F2</div>
+        <div class="fase-content">
+          <div class="fase-title">Logística — Dropi configurado y validado</div>
+          <div class="fase-desc">Cuenta activa en Dropi con datos fiscales, verificación biométrica y cuenta bancaria vinculada. Tu infraestructura de envíos lista.</div>
+          <div class="fase-chips">
+            <span class="fase-chip">app.dropi.co</span>
+            <span class="fase-chip">Verificación biométrica</span>
+            <span class="fase-chip">Cuenta bancaria vinculada</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fase-item">
+        <div class="fase-dot">🚀</div>
+        <div class="fase-content">
+          <div class="fase-title">Lanzamiento — Tu campaña activa en Meta Ads</div>
+          <div class="fase-desc">Con el sistema configurado, el Módulo 7 te lleva paso a paso al montaje y publicación de tu primera campaña. El negocio empieza a operar.</div>
+          <div class="fase-chips">
+            <span class="fase-chip">Meta Ads Manager</span>
+            <span class="fase-chip">Campaña ABO o CBO</span>
+            <span class="fase-chip">Flujo WhatsApp activo</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── QUOTE ─────────────── -->
+<section class="quote-section">
+  <div class="glow-divider"></div>
+  <p class="big-quote">"Tu sistema de ventas externo nunca va a superar tu sistema de creencias interno."</p>
+  <p class="quote-attr">— Gustavo Alcalá · Fundador DropOutliers</p>
+</section>
+
+<!-- ─────────────── ESCALERA DE VALOR ─────────────── -->
+<section class="escalera-section" id="precios">
+  <div class="container">
+    <div class="section-label">Elige tu nivel de entrada</div>
+    <h2 class="section-title">Una escalera diseñada<br>para <span class="gold">crecer contigo</span></h2>
+    <p class="section-desc">Empieza donde puedas. Escala cuando lo decidas. El sistema funciona en todos los niveles.</p>
+
+    <div class="escalera-container">
+
+      <div class="nivel-card">
+        <div class="nivel-badge">
+          <div class="nivel-num">Nivel 1</div>
+          <div class="nivel-nombre">Curso Base</div>
+        </div>
+        <div class="nivel-body">
+          <div class="nivel-precio">$97 USD</div>
+          <div class="nivel-desc">9 módulos pregrabados (~6h), portafolio de productos validados, 5 AI Agents configurados + NotebookLM. Acceso por 1 año.</div>
+        </div>
+      </div>
+
+      <div class="nivel-card">
+        <div class="nivel-badge">
+          <div class="nivel-num">+ Add-on</div>
+          <div class="nivel-nombre">Sesión grupal</div>
+        </div>
+        <div class="nivel-body">
+          <div class="nivel-precio">+$25 USD</div>
+          <div class="nivel-desc">1 sesión grupal en vivo de resolución de dudas y revisión de campaña con Gustavo. Disponible al momento de la compra.</div>
+        </div>
+      </div>
+
+      <div class="nivel-card recomendado">
+        <div class="nivel-badge">
+          <div class="nivel-num">Nivel 2</div>
+          <div class="nivel-nombre">Sistema + Acompañamiento</div>
+        </div>
+        <div class="nivel-body">
+          <div class="nivel-precio">$147 USD</div>
+          <div class="nivel-desc">Todo lo del Nivel 1 + 2 sesiones grupales en vivo (dudas semana 1 + optimización semana 2) + comunidad WhatsApp del cohorte por 30 días.</div>
+          <div class="nivel-rec-tag">⭐ Recomendado</div>
+        </div>
+      </div>
+
+      <div class="nivel-card">
+        <div class="nivel-badge">
+          <div class="nivel-num">Nivel 3</div>
+          <div class="nivel-nombre">Suscripción</div>
+        </div>
+        <div class="nivel-body">
+          <div class="nivel-precio">$25 USD/mes</div>
+          <div class="nivel-desc">1 sesión grupal semanal en vivo, comunidad permanente, productos nuevos validados y acceso prioritario a Q&A. Solo para quienes completaron el curso.</div>
+        </div>
+      </div>
+
+      <div class="nivel-card">
+        <div class="nivel-badge">
+          <div class="nivel-num">Nivel 4</div>
+          <div class="nivel-nombre">Automatización</div>
+        </div>
+        <div class="nivel-body">
+          <div class="nivel-precio">$127 USD</div>
+          <div class="nivel-desc">Módulo completo de automatización con Sellerchat/Chateapro. Templates listos para copiar + guía de integración. Upgrade 1:1 disponible por +$50 USD.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── CTA FINAL ─────────────── -->
+<section class="cta-section" id="cta">
+  <div class="container">
+    <h2>¿Listo para <em class="gold">activar</em><br>tu negocio?</h2>
+    <p>El sistema está construido. Los resultados están documentados. Solo falta que lo ejecutes.</p>
+    <a href="https://api.whatsapp.com/send?phone=573137280904&text=Hola!%20quiero%20separar%20mi%20cupo%20%F0%9F%8E%AB.%0A" target="_blank" class="cta-btn">ACCEDER AL SISTEMA A48 →</a>
+    <div class="cta-whatsapp">
+      <span>●</span> El flujo de ventas opera 100% por <span>WhatsApp Business</span> — sin inventario, sin local, desde tu celular
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── FOOTER ─────────────── -->
+<footer>
+  <div class="footer-logo">DROP<span>OUTLIERS</span> · <span style="font-size:0.8rem;font-weight:400;">Sistema A48</span></div>
+  <div class="footer-copy">© 2026 DropOutliers · Gustavo Alcalá Martínez · Todos los derechos reservados</div>
+</footer>
+
+<!-- ─────────────── FLOATING WHATSAPP ─────────────── -->
+<a href="https://api.whatsapp.com/send?phone=573137280904&text=Hola!%20quiero%20separar%20mi%20cupo%20%F0%9F%8E%AB.%0A"
+   target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp"
+   class="wa-fab" id="wa-fab">
+  <!-- Anillo ping dorado de la marca -->
+  <span class="wa-ping"></span>
+  <!-- Círculo verde WhatsApp con ícono SVG -->
+  <span class="wa-circle">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="white" width="28" height="28">
+      <path d="M16 2C8.268 2 2 8.268 2 16c0 2.47.664 4.784 1.82 6.773L2 30l7.418-1.793A13.93 13.93 0 0 0 16 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm0 2c6.627 0 12 5.373 12 12s-5.373 12-12 12c-2.168 0-4.197-.577-5.95-1.584l-.412-.24-4.402 1.065 1.094-4.285-.265-.43A11.94 11.94 0 0 1 4 16C4 9.373 9.373 4 16 4zm-3.39 6.154c-.222 0-.582.083-.886.41-.304.328-1.161 1.134-1.161 2.766s1.188 3.208 1.354 3.43c.166.222 2.322 3.695 5.706 5.03 2.802 1.106 3.384.886 3.996.83.61-.055 1.968-.804 2.244-1.578.277-.774.277-1.439.194-1.578-.083-.14-.305-.222-.638-.388-.332-.167-1.966-.97-2.27-1.08-.305-.111-.526-.167-.748.166-.222.332-.859 1.08-1.053 1.302-.193.222-.387.25-.72.083-.332-.167-1.402-.517-2.672-1.648-.987-.88-1.653-1.965-1.847-2.298-.193-.332-.02-.512.146-.677.15-.15.332-.388.498-.582.167-.194.222-.333.333-.554.11-.222.055-.416-.028-.582-.083-.167-.748-1.8-1.026-2.463-.27-.648-.546-.56-.748-.57-.193-.01-.416-.012-.638-.012z"/>
+    </svg>
+  </span>
+  <!-- Tooltip -->
+  <span class="wa-tooltip">¡Separar mi cupo! 🎫</span>
+</a>
+
+<style>
+  /* Floating WhatsApp Button */
+  .wa-fab {
+    position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+  }
+  .wa-ping {
+    position: absolute; inset: -4px;
+    border-radius: 9999px;
+    background: rgba(245,184,0,0.35);
+    animation: waPing 1.8s cubic-bezier(0,0,.2,1) infinite;
+  }
+  @keyframes waPing {
+    0%   { transform: scale(1);   opacity: .8; }
+    70%  { transform: scale(1.7); opacity: 0;  }
+    100% { transform: scale(1.7); opacity: 0;  }
+  }
+  .wa-circle {
+    position: relative; z-index: 1;
+    width: 58px; height: 58px; border-radius: 9999px;
+    background: #25D366;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.45), 0 0 0 3px rgba(245,184,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .wa-fab:hover .wa-circle {
+    transform: scale(1.1);
+    box-shadow: 0 6px 28px rgba(37,211,102,0.6), 0 0 0 4px rgba(245,184,0,0.6);
+  }
+  .wa-tooltip {
+    position: absolute; right: 70px;
+    background: #1A1A1A;
+    border: 1px solid rgba(245,184,0,0.4);
+    color: #fff;
+    font-size: 0.78rem; font-weight: 700;
+    padding: 7px 14px; border-radius: 8px;
+    white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transform: translateX(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .wa-tooltip::after {
+    content: '';
+    position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-left-color: rgba(245,184,0,0.4);
+  }
+  .wa-fab:hover .wa-tooltip {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  @media (max-width: 480px) {
+    .wa-fab { right: 1rem; bottom: 1rem; }
+    .wa-circle { width: 52px; height: 52px; }
+    .wa-tooltip { display: none; }
+  }
+</style>
+
+<script>
+  // Auto-detecta el logo si está en la misma carpeta
+  // Intenta los nombres más comunes en orden
+  const logoNames = ['logo.png','logo.jpg','logo.svg','logo.webp','logo-dropoutliers.png','dropoutliers-logo.png','Logo.png','Logo.jpg'];
+  const navLogo  = document.getElementById('logo-nav');
+  const logoText = document.getElementById('logo-text');
+  const heroLogo = document.getElementById('hero-logo');
+
+  function tryLogo(names, idx) {
+    if (idx >= names.length) return;
+    const img = new Image();
+    img.onload = () => {
+      // Navbar
+      navLogo.src = names[idx];
+      navLogo.style.display = 'inline-block';
+      logoText.style.display = 'none';
+      // Hero
+      if (heroLogo) {
+        heroLogo.src = names[idx];
+        heroLogo.style.display = 'block';
+      }
+    };
+    img.onerror = () => tryLogo(names, idx + 1);
+    img.src = names[idx];
+  }
+  tryLogo(logoNames, 0);
+</script>
+</body>
+</html>
